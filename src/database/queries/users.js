@@ -404,7 +404,7 @@ exports.searchUsersWithOrganization = async ({
 	status,
 	metaFilters,
 	sortBy = 'name',
-	sortOrder = 'desc',
+	sortOrder = 'asc',
 }) => {
 	try {
 		const offset = (page - 1) * limit
@@ -450,10 +450,10 @@ exports.searchUsersWithOrganization = async ({
 		}
 
 		// Validate and set sort order
-		const validSortFields = ['name', 'id', 'email']
+		const validSortFields = ['name', 'id', 'email', 'created_at', 'updated_at'] // Add more valid fields as needed
 		const validSortOrder = ['asc', 'desc']
 		const finalSortBy = validSortFields.includes(sortBy) ? sortBy : 'name'
-		const finalSortOrder = validSortOrder.includes(sortOrder.toLowerCase()) ? sortOrder.toUpperCase() : 'DESC'
+		const finalSortOrder = validSortOrder.includes(sortOrder.toLowerCase()) ? sortOrder.toUpperCase() : 'ASC'
 
 		const users = await database.User.findAndCountAll({
 			where: userWhere,

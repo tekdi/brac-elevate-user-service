@@ -1921,9 +1921,9 @@ module.exports = class AccountHelper {
 				Object.assign(metaFilters, params.body.meta)
 			}
 
-			// Extract sortBy and sortOrder from query params, default to updatedAt desc
-			const sortBy = params.query?.sortBy || 'updatedAt'
-			const sortOrder = params.query?.sortOrder || 'desc'
+			// Extract sortBy and sortOrder from query params, default to name asc
+			const sortBy = params.query?.sortBy || 'name'
+			const sortOrder = params.query?.sortOrder || 'asc'
 
 			let users = await userQueries.searchUsersWithOrganization({
 				roleIds,
