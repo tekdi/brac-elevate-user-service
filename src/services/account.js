@@ -1921,6 +1921,10 @@ module.exports = class AccountHelper {
 				Object.assign(metaFilters, params.body.meta)
 			}
 
+			// Extract sortBy and sortOrder from query params, default to updatedAt desc
+			const sortBy = params.query?.sortBy || 'updatedAt'
+			const sortOrder = params.query?.sortOrder || 'desc'
+
 			let users = await userQueries.searchUsersWithOrganization({
 				roleIds,
 				organization_id: params.query.organization_id,
@@ -1933,6 +1937,8 @@ module.exports = class AccountHelper {
 				tenantCode: params.query.tenant_code,
 				status: params.query.status || false,
 				metaFilters: Object.keys(metaFilters).length > 0 ? metaFilters : undefined,
+				sortBy,
+				sortOrder,
 			})
 
 			if (users.count == 0) {
