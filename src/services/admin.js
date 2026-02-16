@@ -1057,4 +1057,55 @@ module.exports = class AdminHelper {
 			return error
 		}
 	}
+
+	/**
+	 * Update user profile (Admin only)
+	 * @method
+	 * @name updateUserProfile
+	 * @param {String} userId - user id to update
+	 * @param {Object} bodyData - user profile data to update
+	 * @param {String} tenantCode - tenant code
+	 * @returns {JSON} - updated user profile response
+	 */
+	static async updateUserProfile(userId, bodyData, tenantCode) {
+		try {
+			// Get user with organization to retrieve organization code
+			const user = await userQueries.findUserWithOrganization(
+				{ id: userId, tenant_code: tenantCode },
+				{ attributes: { exclude: ['password', 'refresh_tokens'] } }
+			)
+
+			if (!user) {
+				return responses.failureResponse({
+					message: 'USER_NOT_FOUND',
+					statusCode: httpStatusCode.not_found,
+					responseCode: 'CLIENT_ERROR',
+				})
+			}
+
+			// Get organization code from user's organizations
+			if (!user.organizations || user.organizations.length === 0) {
+				return responses.failureResponse({
+					message: 'USER_ORGANIZATION_NOT_FOUND',
+					statusCode: httpStatusCode.bad_request,
+					responseCode: 'CLIENT_ERROR',
+				})
+			}
+
+			const organizationCode = user.organizations[0].code
+
+			// Remove id from bodyData if present (we use userId parameter instead)
+			const updateData = { ...bodyData }
+			delete updateData.id
+
+			// Call userService.update with the target user's ID and organization code
+			const userService = require('@services/user')
+			const updatedUser = await userService.update(updateData, userId, organizationCode, tenantCode)
+
+			return updatedUser
+		} catch (error) {
+			console.error('Error in updateUserProfile:', error)
+			throw error
+		}
+	}
 }
