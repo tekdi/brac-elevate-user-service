@@ -592,10 +592,21 @@ module.exports = class OrgAdminHelper {
 
 	static async updateUser(userId, bodyData, tokenInformation) {
 		try {
-			if (
-				bodyData.organization_id == tokenInformation.organization_id ||
-				bodyData.organization_id == tokenInformation.organization_code
-			) {
+			// Handle organization_id as string or array
+			let orgIdMatches = false
+			if (Array.isArray(bodyData.organization_id)) {
+				// If organization_id is an array, check if any element matches
+				orgIdMatches = bodyData.organization_id.some(
+					(orgId) => orgId == tokenInformation.organization_id || orgId == tokenInformation.organization_code
+				)
+			} else {
+				// If organization_id is a string, check direct match
+				orgIdMatches =
+					bodyData.organization_id == tokenInformation.organization_id ||
+					bodyData.organization_id == tokenInformation.organization_code
+			}
+
+			if (orgIdMatches) {
 				let checkUser = await userQueries.findOne({ id: userId })
 				if (!checkUser) {
 					return responses.failureResponse({
