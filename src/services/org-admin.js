@@ -616,25 +616,22 @@ module.exports = class OrgAdminHelper {
 					})
 				}
 
-				// Check if user is admin
-				const isAdmin = utils.validateRoleAccess(tokenInformation.roles, [common.ADMIN_ROLE])
-				const isLC = utils.validateRoleAccess(tokenInformation.roles, [common.ORG_ADMIN_ROLE])
-
-				// If not admin and trying to update roles, reject
-				if (!isAdmin && bodyData.roles && Array.isArray(bodyData.roles) && bodyData.roles.length > 0) {
-					return responses.failureResponse({
-						responseCode: 'CLIENT_ERROR',
-						statusCode: httpStatusCode.forbidden,
-						message: 'YOU_DONT_HAVE_ACCESS_TO_UPDATE_ROLES',
-					})
-				}
+				// Get editable fields from env: ADMIN_EDITABLE_FIELDS_FOR_USER=province,site,location,roles
+				// If not defined, defaults to 'roles' only
+				const allowedFieldsConfig = process.env.ADMIN_EDITABLE_FIELDS_FOR_USER || 'roles'
+				const allowedFields = allowedFieldsConfig
+					.split(',')
+					.map((f) => f.trim().toLowerCase())
+					.filter(Boolean)
 
 				const updateData = {}
 				let hasRoleUpdate = false
 				let hasProfileUpdate = false
+				let hasPasswordUpdate = false
 
-				// Handle role updates (only for admin)
-				if (isAdmin && bodyData.roles && Array.isArray(bodyData.roles) && bodyData.roles.length > 0) {
+				// Handle role updates (only if roles is in allowedFields)
+				const canUpdateRoles = allowedFields.includes('roles')
+				if (canUpdateRoles && bodyData.roles && Array.isArray(bodyData.roles) && bodyData.roles.length > 0) {
 					let roles = _.without(bodyData.roles, common.ADMIN_ROLE)
 					let getRoleIds = await roleQueries.findAll({ title: roles }, { attributes: ['id'] })
 					if (!getRoleIds || getRoleIds.length === 0) {
@@ -649,15 +646,23 @@ module.exports = class OrgAdminHelper {
 					hasRoleUpdate = true
 				}
 
+				// Reject if roles sent but not allowed
+				if (!canUpdateRoles && bodyData.roles && Array.isArray(bodyData.roles) && bodyData.roles.length > 0) {
+					return responses.failureResponse({
+						responseCode: 'CLIENT_ERROR',
+						statusCode: httpStatusCode.forbidden,
+						message: 'ROLES_UPDATE_NOT_ALLOWED_BY_CONFIG',
+					})
+				}
+
 				// Handle profile updates
 				// Extract profile fields (everything except organization_id and roles)
 				let profileFields = { ...bodyData }
 				delete profileFields.organization_id
 				delete profileFields.roles
 
-				// If LC user, only allow province, site, and address fields
-				if (isLC && !isAdmin) {
-					const allowedFields = ['province', 'site', 'location']
+				// Filter profile fields based on ADMIN_EDITABLE_FIELDS_FOR_USER config (default: roles only)
+				if (allowedFields.length > 0) {
 					const filteredFields = {}
 					Object.keys(profileFields).forEach((key) => {
 						if (allowedFields.includes(key.toLowerCase())) {
@@ -665,22 +670,25 @@ module.exports = class OrgAdminHelper {
 						}
 					})
 					profileFields = filteredFields
+				}
 
-					// If LC user tries to update other fields, reject
-					if (
-						Object.keys(profileFields).length === 0 &&
-						Object.keys(bodyData).some(
-							(key) =>
-								key !== 'organization_id' &&
-								key !== 'roles' &&
-								!allowedFields.includes(key.toLowerCase())
-						)
-					) {
-						return responses.failureResponse({
-							responseCode: 'CLIENT_ERROR',
-							statusCode: httpStatusCode.forbidden,
-							message: 'LC_USERS_CAN_ONLY_UPDATE_PROVINCE_SITE_AND_ADDRESS',
-						})
+				// Handle password separately - hash before storing (standard flow like reset/change password)
+				if (profileFields.password) {
+					const canUpdatePassword = allowedFields.includes('password')
+					if (!canUpdatePassword) {
+						delete profileFields.password
+					} else {
+						if (!utils.isValidPassword(profileFields.password)) {
+							return responses.failureResponse({
+								responseCode: 'CLIENT_ERROR',
+								statusCode: httpStatusCode.bad_request,
+								message: process.env.PASSWORD_POLICY_MESSAGE || 'INVALID_PASSWORD_FORMAT',
+							})
+						}
+						updateData.password = utils.hashPassword(profileFields.password)
+						updateData.refresh_tokens = []
+						delete profileFields.password
+						hasPasswordUpdate = true
 					}
 				}
 
@@ -713,19 +721,31 @@ module.exports = class OrgAdminHelper {
 					hasProfileUpdate = true
 				}
 
-				// Update roles if provided (only for admin)
-				if (hasRoleUpdate) {
-					await userQueries.updateUser({ id: userId }, updateData)
+				// Update roles and/or password if provided
+				if (hasRoleUpdate || hasPasswordUpdate) {
+					await userQueries.updateUser({ id: userId, tenant_code: tokenInformation.tenant_code }, updateData)
+					const redisUserKey = common.redisUserPrefix + tokenInformation.tenant_code + '_' + userId.toString()
+					if (await utils.redisGet(redisUserKey)) {
+						await utils.redisDel(redisUserKey)
+					}
 				}
 
 				// Determine success message
 				let message = 'USER_UPDATE_SUCCESSFUL'
-				if (hasRoleUpdate && hasProfileUpdate) {
+				if (hasRoleUpdate && hasProfileUpdate && hasPasswordUpdate) {
+					message = 'USER_ROLE_PROFILE_AND_PASSWORD_UPDATE_SUCCESSFUL'
+				} else if (hasRoleUpdate && hasProfileUpdate) {
 					message = 'USER_ROLE_AND_PROFILE_UPDATE_SUCCESSFUL'
+				} else if (hasRoleUpdate && hasPasswordUpdate) {
+					message = 'USER_ROLE_AND_PASSWORD_UPDATE_SUCCESSFUL'
+				} else if (hasProfileUpdate && hasPasswordUpdate) {
+					message = 'USER_PROFILE_AND_PASSWORD_UPDATE_SUCCESSFUL'
 				} else if (hasRoleUpdate) {
 					message = 'USER_ROLE_UPDATE_SUCCESSFUL'
 				} else if (hasProfileUpdate) {
 					message = 'USER_PROFILE_UPDATE_SUCCESSFUL'
+				} else if (hasPasswordUpdate) {
+					message = 'USER_PASSWORD_UPDATE_SUCCESSFUL'
 				}
 
 				return responses.successResponse({
