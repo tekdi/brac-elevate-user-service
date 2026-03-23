@@ -8,7 +8,7 @@ const common = require('@constants/common')
 const httpStatus = require('@generics/http-status')
 const responses = require('@helpers/responses')
 function containsSpecialChars(str) {
-	const specialChars = /[`!#$%^&*()_+\-=\[\]{};':"\\|<>\/?~]/
+	const specialChars = /[`!#$%^&*()+\-=\[\]{};':"\\|<>\/?~]/
 	return specialChars.test(str)
 }
 module.exports = (req, res, next) => {
