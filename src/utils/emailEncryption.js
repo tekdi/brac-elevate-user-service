@@ -24,6 +24,19 @@ const decrypt = (encryptedEmail) => {
 		throw err
 	}
 }
-const emailEncryption = { encrypt, decrypt }
+
+/** When phone_code is empty, legacy plaintext is returned as-is; otherwise decrypt is used. */
+const decryptPhone = (phoneValue, phoneCode) => {
+	if (!phoneValue || typeof phoneValue !== 'string') {
+		return phoneValue
+	}
+	const hasCode = phoneCode != null && String(phoneCode).trim() !== ''
+	if (!hasCode) {
+		return phoneValue
+	}
+	return decrypt(phoneValue)
+}
+
+const emailEncryption = { encrypt, decrypt, decryptPhone }
 
 module.exports = emailEncryption

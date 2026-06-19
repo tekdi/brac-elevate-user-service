@@ -150,7 +150,9 @@ module.exports = class AccountHelper {
 			const processedDbResponse = await utils.processDbResponse(userInvite, prunedEntities)
 			let response = UserTransformDTO.userInviteDTO(processedDbResponse, prunedEntities)
 			response.email = response?.email ? emailEncryption.decrypt(response.email) : response?.email
-			response.phone = response?.phone ? emailEncryption.decrypt(response.phone) : response?.phone
+			response.phone = response?.phone
+				? emailEncryption.decryptPhone(response.phone, response.phone_code)
+				: response?.phone
 			response.editable_fields =
 				userInvite['invitation.editable_fields'].filter(
 					(field) => field !== '' && field !== null && field !== undefined

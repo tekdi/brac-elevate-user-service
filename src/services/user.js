@@ -158,7 +158,10 @@ module.exports = class UserHelper {
 			}
 
 			if (processDbResponse?.phone) {
-				processDbResponse.phone = emailEncryption.decrypt(processDbResponse?.phone)
+				processDbResponse.phone = emailEncryption.decryptPhone(
+					processDbResponse?.phone,
+					processDbResponse?.phone_code
+				)
 			}
 
 			if (modifiedKeys.length > 0) {
@@ -167,7 +170,9 @@ module.exports = class UserHelper {
 					newValues = {}
 				userMeta = utils.parseMetaData(userMeta, prunedEntities, oldValues)
 				oldValues.email = oldValues?.email ? emailEncryption.decrypt(oldValues.email) : oldValues.email
-				oldValues.phone = oldValues?.phone ? emailEncryption.decrypt(oldValues.phone) : oldValues.phone
+				oldValues.phone = oldValues?.phone
+					? emailEncryption.decryptPhone(oldValues.phone, oldValues.phone_code)
+					: oldValues.phone
 				oldValues = {
 					...oldValues,
 					...userMeta,
@@ -367,12 +372,14 @@ module.exports = class UserHelper {
 				const processDbResponse = await utils.processDbResponse(user, prunedEntities)
 
 				if (processDbResponse) {
-					;['email', 'phone'].forEach((field) => {
-						const value = processDbResponse[field]
-						if (typeof value === 'string' && value.trim() !== '') {
-							processDbResponse[field] = emailEncryption.decrypt(value)
-						}
-					})
+					const emailVal = processDbResponse.email
+					if (typeof emailVal === 'string' && emailVal.trim() !== '') {
+						processDbResponse.email = emailEncryption.decrypt(emailVal)
+					}
+					const phoneVal = processDbResponse.phone
+					if (typeof phoneVal === 'string' && phoneVal.trim() !== '') {
+						processDbResponse.phone = emailEncryption.decryptPhone(phoneVal, processDbResponse.phone_code)
+					}
 				}
 
 				if (utils.validateRoleAccess(roles, [common.MENTOR_ROLE, common.MENTEE_ROLE])) {

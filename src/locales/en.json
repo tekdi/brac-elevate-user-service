@@ -152,6 +152,7 @@
 	"TENANT_DOMAIN_NOT_FOUND_PING_ADMIN": "Tenant domain not found. Please contact your administrator for assistance.",
 	"TENANT_NOT_FOUND_PING_ADMIN": "Tenant not found. Please contact your administrator for assistance.",
 	"EMAIL_OR_PHONE_REQUIRED": "Either an email address or phone number is required.",
+	"PHONE_CODE_REQUIRED_WHEN_PHONE_PROVIDED": "phone_code is required when phone is provided.",
 	"INVALID_ORG_REGISTRATION_CODE": "The organization registration code you entered is invalid. Please check and try again.",
 	"IDENTIFIER_OR_PASSWORD_INVALID": "Invalid identifier or password. Please check your login credentials.",
 	"IDENTIFIER_REQUIRED": "An identifier (email or phone) is required to proceed.",

@@ -79,7 +79,9 @@ module.exports = class AdminHelper {
 					id: userId,
 					username: user?.username || null,
 					email: user?.email ? emailEncryption.decrypt(user?.email) : user?.email || null,
-					phone: user?.phone ? emailEncryption.decrypt(user?.phone) : user?.phone || null,
+					phone: user?.phone
+						? emailEncryption.decryptPhone(user?.phone, user?.phone_code)
+						: user?.phone || null,
 				},
 			})
 
@@ -179,12 +181,14 @@ module.exports = class AdminHelper {
 				const decryptedOldUser = {
 					...(user.toJSON?.() || user),
 					email: user?.email ? emailEncryption.decrypt(user.email) : user?.email,
-					phone: user?.phone ? emailEncryption.decrypt(user.phone) : user?.phone,
+					phone: user?.phone ? emailEncryption.decryptPhone(user.phone, user.phone_code) : user?.phone,
 				}
 				const decryptedNewUser = {
 					...(updatedUser.toJSON?.() || updatedUser),
 					email: updatedUser?.email ? emailEncryption.decrypt(updatedUser.email) : updatedUser?.email,
-					phone: updatedUser?.phone ? emailEncryption.decrypt(updatedUser.phone) : updatedUser?.phone,
+					phone: updatedUser?.phone
+						? emailEncryption.decryptPhone(updatedUser.phone, updatedUser.phone_code)
+						: updatedUser?.phone,
 				}
 
 				const newValues = utils.extractDelta(decryptedOldUser, decryptedNewUser)
@@ -239,12 +243,25 @@ module.exports = class AdminHelper {
 	static async create(bodyData) {
 		let transaction
 
+		const phonePresent = bodyData.phone != null && String(bodyData.phone).trim() !== ''
+		const phoneCodePresent = bodyData.phone_code != null && String(bodyData.phone_code).trim() !== ''
+		if (phonePresent && !phoneCodePresent) {
+			return responses.failureResponse({
+				message: 'PHONE_CODE_REQUIRED_WHEN_PHONE_PROVIDED',
+				statusCode: httpStatusCode.bad_request,
+				responseCode: 'CLIENT_ERROR',
+			})
+		}
+
 		try {
 			transaction = await sequelize.transaction()
 
 			const plaintextEmailId = bodyData.email ? bodyData.email.toLowerCase() : null
 			const encryptedEmailId = plaintextEmailId ? emailEncryption.encrypt(plaintextEmailId) : null
-			const encryptedPhoneNumber = bodyData.phone ? emailEncryption.encrypt(bodyData.phone) : null
+			let encryptedPhoneNumber = null
+			if (bodyData.phone && bodyData.phone_code) {
+				encryptedPhoneNumber = emailEncryption.encrypt(bodyData.phone)
+			}
 
 			// Get default tenant details
 			const tenantDetail = await tenantQueries.findOne({

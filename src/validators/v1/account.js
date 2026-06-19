@@ -91,8 +91,12 @@ module.exports = {
 		}
 
 		req.checkBody(['email', 'phone', 'phone_code']).custom(() => {
-			const phone = req.body.phone
-			const phone_code = req.body.phone_code
+			const phone =
+				req.body.phone != null && String(req.body.phone).trim() !== '' ? String(req.body.phone).trim() : ''
+			const phone_code =
+				req.body.phone_code != null && String(req.body.phone_code).trim() !== ''
+					? String(req.body.phone_code).trim()
+					: ''
 			const email = req.body.email
 
 			if (!email && !phone) {

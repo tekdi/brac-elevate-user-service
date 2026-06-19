@@ -7,6 +7,7 @@
 const common = require('@constants/common')
 const filterRequestBody = require('../common')
 const { tenant } = require('@constants/blacklistConfig')
+const accountValidator = require('./account')
 
 module.exports = {
 	update: (req) => {
@@ -138,4 +139,7 @@ module.exports = {
 			.custom((value) => allowedTypes.includes(value.toUpperCase()))
 			.withMessage(`upload_type must be one of: ${allowedTypes.join(', ')}`)
 	},
+
+	/** Same payload rules as account.create (phone requires phone_code for encrypted storage). */
+	accountCreate: (req) => accountValidator.create(req),
 }
