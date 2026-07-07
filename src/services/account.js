@@ -201,6 +201,7 @@ module.exports = class AccountHelper {
 				}
 			}
 
+			const plainPassword = bodyData.password
 			bodyData.password = utilsHelper.hashPassword(bodyData.password)
 			if (!bodyData.username) {
 				bodyData.username = await generateUniqueUsername(bodyData.name)
@@ -595,7 +596,7 @@ module.exports = class AccountHelper {
 						appName: tenantDetail.name,
 						roles: roleToString || '',
 						portalURL: tenantDomain.domain,
-						password: bodyData.password,
+						password: plainPassword,
 					},
 					tenantCode: tenantDetail.code,
 					organization_code: user.organizations?.[0].code || null,
@@ -612,7 +613,7 @@ module.exports = class AccountHelper {
 						appName: tenantDetail.name,
 						roles: roleToString || '',
 						portalURL: tenantDomain.domain,
-						password: bodyData.password,
+						password: plainPassword,
 					},
 					tenantCode: tenantDetail.code,
 					organization_code: user.organizations?.[0].code || null,
