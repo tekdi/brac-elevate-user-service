@@ -1,24 +1,18 @@
 name: Build & Push Multi-Arch Docker Image
-
 on:
   push:
     branches:
       - develop
-
- # workflow_dispatch:
-
+  # workflow_dispatch:
 permissions:
   contents: read
   packages: write
-
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   docker:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -30,6 +24,7 @@ jobs:
           echo "Owner      : ${{ github.repository_owner }}"
           echo "Ref        : ${{ github.ref }}"
           echo "Ref Name   : ${{ github.ref_name }}"
+
       - name: Verify GITHUB_TOKEN
         run: |
           if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
@@ -38,6 +33,7 @@ jobs:
             echo "❌ GITHUB_TOKEN is NOT available."
             exit 1
           fi
+
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -57,10 +53,11 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=develop-latest,enable=true
             type=ref,event=branch
             type=ref,event=tag
             type=sha
+
       - name: Build & Push Multi-Arch Image
         uses: docker/build-push-action@v6
         with:
@@ -68,10 +65,8 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -79,6 +74,7 @@ jobs:
         run: |
           docker buildx imagetools inspect \
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+
       - name: Cleanup old GHCR package versions (keep latest 3)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -104,4 +100,4 @@ jobs:
               --method DELETE \
               /orgs/${OWNER}/packages/container/${PACKAGE}/versions/${ID}
           done
-          echo "Cleanup completed." 
+          echo "Cleanup completed."
