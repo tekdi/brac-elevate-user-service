@@ -75,29 +75,16 @@ jobs:
           docker buildx imagetools inspect \
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
 
-      - name: Cleanup old GHCR package versions (keep latest 3)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OWNER: ${{ github.repository_owner }}
-          PACKAGE: ${{ github.event.repository.name }}
-        run: |
-          echo "Repository Owner : ${OWNER}"
-          echo "Package          : ${PACKAGE}"
-          echo "Fetching package versions..."
-          IDS=$(gh api \
-            /orgs/${OWNER}/packages/container/${PACKAGE}/versions \
-            --paginate \
-            --jq 'sort_by(.created_at) | reverse | .[3:] | .[].id')
-          if [ -z "$IDS" ]; then
-            echo "Only 3 or fewer versions exist. Nothing to delete."
-            exit 0
-          fi
-          echo "Deleting old versions..."
-          echo "$IDS" | while read ID
-          do
-            echo "Deleting package version: ${ID}"
-            gh api \
-              --method DELETE \
-              /orgs/${OWNER}/packages/container/${PACKAGE}/versions/${ID}
-          done
-          echo "Cleanup completed."
+      - name: Cleanup old GHCR package versions (safe, multi-arch aware)
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          owner: ${{ github.repository_owner }}
+          package: ${{ github.event.repository.name }}
+          # Never touch anything currently referenced by a tag
+          keep-n-tagged: 3
+          # Remove only dangling/untagged manifests older than the above,
+          # and correctly resolves multi-arch index -> child manifest
+          # references so an active tag's platform images are never deleted.
+          delete-untagged: true
+          dry-run: false
