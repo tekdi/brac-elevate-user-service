@@ -2,9 +2,7 @@ name: Staging Fargo Deployment
 on:
   workflow_run:
     workflows:
-      - Build & Push Multi-Arch Docker Image
-    branches:
-      - develop  
+      - Build & Push Multi-Arch Docker Image  
     types:
       - completed
 
