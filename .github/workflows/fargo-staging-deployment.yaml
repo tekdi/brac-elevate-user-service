@@ -18,7 +18,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.FARGO_EC2_HOST }}
-          username: ${{ secrets.HOST_NAME_DEV }}
+          username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ${{ secrets.TARGET_DIR_FARGO }}
