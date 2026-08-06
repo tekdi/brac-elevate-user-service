@@ -104,4 +104,4 @@ jobs:
               --method DELETE \
               /orgs/${OWNER}/packages/container/${PACKAGE}/versions/${ID}
           done
-          echo "Cleanup completed."
+          echo "Cleanup completed." 
