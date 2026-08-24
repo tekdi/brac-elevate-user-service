@@ -136,7 +136,8 @@ module.exports = class UserHelper {
 
 			let userModel = await userQueries.getColumns()
 			bodyData.updated_at = new Date().getTime()
-			bodyData = utils.restructureBody(bodyData, validationData, userModel)
+			// Pass existing user row so saved fields (e.g. address, city, company) aren't wiped out
+			bodyData = utils.restructureBody(bodyData, validationData, userModel, user)
 
 			// Check if 'user_roles' is present in the request body and is not empty
 			if (bodyData.roles && bodyData.roles.length > 0) {
@@ -603,7 +604,8 @@ module.exports = class UserHelper {
 				})
 			}
 			bodyData.updated_at = new Date().getTime()
-			bodyData = utils.restructureBody(bodyData, dataValidation, userModel)
+			// Pass existing user row so saved fields (e.g. address, city, company) aren't wiped out
+			bodyData = utils.restructureBody(bodyData, dataValidation, userModel, user)
 
 			const [affectedRows, updatedData] = await userQueries.updateUser(
 				{ id: id, tenant_code: tenantCode },
