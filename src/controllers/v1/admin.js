@@ -312,4 +312,43 @@ module.exports = class Admin {
 			console.log(err)
 		}
 	}
+
+	/**
+	 * Update user profile (Admin only)
+	 * @method
+	 * @name updateProfile
+	 * @param {Object} req - request data
+	 * @param {String} req.params.id - user id to update (optional, can also be in body)
+	 * @param {String} req.body.id - user id to update (optional, if not in params)
+	 * @param {Object} req.body - contains user profile data to update
+	 * @param {Object} req.decodedToken - decoded token with admin info
+	 * @returns {JSON} - updated user profile response
+	 */
+	async updateProfile(req) {
+		try {
+			if (!utilsHelper.validateRoleAccess(req.decodedToken.roles, common.ADMIN_ROLE)) {
+				throw responses.failureResponse({
+					message: 'USER_IS_NOT_A_ADMIN',
+					statusCode: httpStatusCode.bad_request,
+					responseCode: 'CLIENT_ERROR',
+				})
+			}
+
+			// Get userId from params or body
+			const userId = req.params.id || req.body.id
+
+			if (!userId) {
+				throw responses.failureResponse({
+					message: 'USER_ID_REQUIRED',
+					statusCode: httpStatusCode.bad_request,
+					responseCode: 'CLIENT_ERROR',
+				})
+			}
+
+			const updatedUser = await adminService.updateUserProfile(userId, req.body, req.decodedToken.tenant_code)
+			return updatedUser
+		} catch (error) {
+			return error
+		}
+	}
 }

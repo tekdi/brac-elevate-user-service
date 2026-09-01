@@ -194,4 +194,25 @@ module.exports = {
 			.isNumeric()
 			.withMessage('role_id must be a number')
 	},
+
+	updateProfile: (req) => {
+		// userId can be in params or body
+		if (req.params.id) {
+			req.checkParams('id')
+				.notEmpty()
+				.withMessage('id param is required')
+				.isNumeric()
+				.withMessage('id must be a number')
+		} else {
+			req.checkBody('id')
+				.notEmpty()
+				.withMessage('id field is required')
+				.isNumeric()
+				.withMessage('id must be a number')
+		}
+
+		// Filter request body using user update blacklist
+		const { user } = require('@constants/blacklistConfig')
+		req.body = filterRequestBody(req.body, user.update)
+	},
 }
