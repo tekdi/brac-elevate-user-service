@@ -602,7 +602,12 @@ module.exports = class OrgAdminHelper {
 			// }
 
 			// Check if user is admin
-			const isAdmin = utils.validateRoleAccess(tokenInformation.roles, [common.ADMIN_ROLE])
+			let isAdmin = false
+			if (tokenInformation) {
+				isAdmin = utils.validateRoleAccess(tokenInformation.roles, [common.ADMIN_ROLE])
+			} else {
+				isAdmin = true
+			}
 
 			// If not admin and trying to update roles, reject
 			if (!isAdmin && bodyData.roles && Array.isArray(bodyData.roles) && bodyData.roles.length > 0) {
@@ -643,9 +648,10 @@ module.exports = class OrgAdminHelper {
 				// Use userService.update logic for profile updates
 				const userService = require('@services/user')
 
-				const orgCode = tokenInformation.organization_code
-				const tenantCode = tokenInformation.tenant_code
-
+				const orgCode = tokenInformation
+					? tokenInformation.organization_code
+					: process.env.DEFAULT_ORGANISATION_CODE
+				const tenantCode = tokenInformation ? tokenInformation.tenant_code : process.env.DEFAULT_TENANT_CODE
 				// For PATCH operations from org-admin, skip required field validation
 				// Only update the fields that are sent (province, site, location)
 				const skipRequiredValidation = true
