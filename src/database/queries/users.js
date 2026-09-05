@@ -459,16 +459,20 @@ exports.searchUsersWithOrganization = async ({
 					required: true,
 					where: {
 						tenant_code: tenantCode,
-						...(organization_id && { organization_id }),
 					},
 					include: [
 						{
 							model: database.Organization,
 							as: 'organization',
-							required: false,
+							// organization_id has no column on user_organizations (only organization_code) --
+							// the numeric id filter belongs on the joined Organization row's own primary key.
+							// required flips to true only when that filter is actually supplied, so a caller
+							// that omits organization_id keeps the previous (unfiltered) LEFT JOIN behaviour.
+							required: Boolean(organization_id),
 							where: {
 								status: 'ACTIVE',
 								tenant_code: tenantCode,
+								...(organization_id && { id: organization_id }),
 							},
 							attributes: ['id', 'name', 'code'],
 						},
@@ -496,6 +500,11 @@ exports.searchUsersWithOrganization = async ({
 			],
 			raw: false,
 			distinct: true, // Needed for correct count when using include
+			// Two nested hasMany-shaped includes (organization, roles) both required
+			// makes Sequelize's default subquery-based count drop a join alias from
+			// its FROM clause ("missing FROM-clause entry for table user_organizations").
+			// subQuery: false runs count and rows against the same flat join instead.
+			subQuery: false,
 		})
 
 		return {
