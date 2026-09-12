@@ -1125,7 +1125,7 @@ module.exports = class AccountHelper {
 					responseCode: 'CLIENT_ERROR',
 				})
 			}
-			const user = await userQueries.findUserWithOrganization(query, {}, tenantDomain.tenant_code)
+			const user = await userQueries.findUserWithOrganization(query, {}, false)
 
 			if (!user) {
 				return responses.failureResponse({
@@ -1161,7 +1161,7 @@ module.exports = class AccountHelper {
 					templateCode: process.env.OTP_EMAIL_TEMPLATE_CODE,
 					variables: { name: user.name, otp },
 					tenantCode: tenantDetail.code,
-					organization_code: user.organizations?.[0]?.code || null,
+					organizationCode: user.organizations?.[0]?.code || null,
 				})
 			}
 
@@ -1172,7 +1172,7 @@ module.exports = class AccountHelper {
 					templateCode: process.env.OTP_EMAIL_TEMPLATE_CODE,
 					variables: { app_name: tenantDetail.name, otp },
 					tenantCode: tenantDetail.code,
-					organization_code: user.organizations?.[0]?.code || null,
+					organizationCode: user.organizations?.[0]?.code || null,
 				})
 			}
 
