@@ -325,13 +325,37 @@ const entityTypeMapGenerator = (entityTypeData) => {
 	}
 }
 
-function restructureBody(requestBody, entityData, allowedKeys) {
+// Safely turn a stored meta/custom_entity_text value (object, JSON string, or null) into a plain {}
+const asPlainObject = (value) => {
+	if (!value) return {}
+	if (typeof value === 'string') {
+		try {
+			const parsed = JSON.parse(value)
+			return parsed && typeof parsed === 'object' ? parsed : {}
+		} catch (err) {
+			return {}
+		}
+	}
+	return typeof value === 'object' ? value : {}
+}
+
+// existingRow = user's current DB row; pass it on UPDATE so saved fields aren't lost, omit on CREATE
+function restructureBody(requestBody, entityData, allowedKeys, existingRow = null) {
 	try {
 		const entityTypeMap = entityTypeMapGenerator(entityData)
 		const doesAffectedFieldsExist = Object.keys(requestBody).some((element) => entityTypeMap.has(element))
 		if (!doesAffectedFieldsExist) return requestBody
-		requestBody.custom_entity_text = {}
-		if (!requestBody.meta) requestBody.meta = {}
+
+		// Start from what's already saved, so unrelated fields (e.g. address, city, company) aren't wiped
+		requestBody.custom_entity_text = { ...asPlainObject(existingRow?.custom_entity_text) }
+		requestBody.meta = { ...asPlainObject(existingRow?.meta), ...asPlainObject(requestBody.meta) }
+
+		// Drop the old value only for fields this request is actually updating
+		for (const fieldName of Object.keys(requestBody)) {
+			if (!entityTypeMap.has(fieldName)) continue
+			delete requestBody.custom_entity_text[fieldName]
+			delete requestBody.meta[fieldName]
+		}
 		for (const currentFieldName in requestBody) {
 			const [currentFieldValue, isFieldValueAnArray] = Array.isArray(requestBody[currentFieldName])
 				? [[...requestBody[currentFieldName]], true] //If the requestBody[currentFieldName] is array, make a copy in currentFieldValue than a reference
