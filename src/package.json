@@ -122,5 +122,8 @@
 		"@helpers": "helpers",
 		"@scripts": "scripts",
 		"@dtos": "dtos"
+	},
+	"engines": {
+		"node": ">=24 <25"
 	}
 }
