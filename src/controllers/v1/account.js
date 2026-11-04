@@ -40,7 +40,7 @@ module.exports = class Account {
 		}
 
 		const device_info = req.headers && req.headers['device-info'] ? JSON.parse(req.headers['device-info']) : {}
-		
+
 		try {
 			const createdAccount = await accountService.create(params, device_info, domain)
 			return createdAccount
@@ -226,7 +226,9 @@ module.exports = class Account {
 	 */
 	async list(req) {
 		try {
-			const result = await accountService.list(req, req.decodedToken.tenant_code)
+			// Internal calls (internal_access_token, no user token) pass the tenant as ?tenant_code=
+			const tenantCode = req.decodedToken?.tenant_code || req.query.tenant_code
+			const result = await accountService.list(req, tenantCode)
 			return result
 		} catch (error) {
 			return error
