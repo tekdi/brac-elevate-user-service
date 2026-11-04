@@ -27,19 +27,19 @@ const pushUserEventsToKafka = async (message) => {
 		console.log('📤 [USER KAFKA PRODUCER]   Tenant Code:', message.tenant_code)
 		console.log('📤 [USER KAFKA PRODUCER]   Created By:', message.created_by)
 		console.log('📤 [USER KAFKA PRODUCER]   Organizations:', message.organizations?.length || 0, 'orgs')
-		
+
 		const messageString = JSON.stringify(message)
 		console.log('📤 [USER KAFKA PRODUCER] Payload Size:', messageString.length, 'bytes')
 		console.log('📤 [USER KAFKA PRODUCER] First 200 chars:', messageString.substring(0, 200) + '...')
-		
+
 		const payload = { topic: process.env.EVENT_USER_KAFKA_TOPIC, messages: [{ value: messageString }] }
 		console.log('📤 [USER KAFKA PRODUCER] Kafka Payload Prepared:')
 		console.log('📤 [USER KAFKA PRODUCER]   Topic:', payload.topic)
 		console.log('📤 [USER KAFKA PRODUCER]   Messages Count:', payload.messages.length)
-		
+
 		console.log('📤 [USER KAFKA PRODUCER] Sending to Kafka...')
 		const response = await pushPayloadToKafka(payload)
-		
+
 		console.log('📤 [USER KAFKA PRODUCER] ✅ Kafka Response Received:')
 		console.log('📤 [USER KAFKA PRODUCER]   Success:', response ? 'Yes' : 'No')
 		if (response && response[0]) {
@@ -48,7 +48,7 @@ const pushUserEventsToKafka = async (message) => {
 			console.log('📤 [USER KAFKA PRODUCER]   Offset:', response[0].baseOffset)
 		}
 		console.log('📤 [USER KAFKA PRODUCER] ===== KAFKA USER EVENT COMPLETED =====')
-		
+
 		return response
 	} catch (error) {
 		console.log('📤 [USER KAFKA PRODUCER] ❌ ERROR in pushUserEventsToKafka:', error.message)
@@ -87,17 +87,20 @@ const pushPayloadToKafka = async (payload) => {
 		console.log('📤 [KAFKA PRODUCER] Payload Topic:', payload.topic)
 		console.log('📤 [KAFKA PRODUCER] Message Count:', payload.messages.length)
 		console.log('📤 [KAFKA PRODUCER] Kafka Brokers:', process.env.KAFKA_URL || 'Not configured')
-		
+
 		console.log('📤 [KAFKA PRODUCER] Calling kafkaProducer.send()...')
 		const startTime = Date.now()
 		let response = await kafkaProducer.send(payload)
 		const endTime = Date.now()
-		
+
 		console.log('📤 [KAFKA PRODUCER] ✅ Kafka Send Completed:')
 		console.log('📤 [KAFKA PRODUCER]   Duration:', endTime - startTime, 'ms')
 		console.log('📤 [KAFKA PRODUCER]   Response Type:', typeof response)
-		console.log('📤 [KAFKA PRODUCER]   Response Array Length:', Array.isArray(response) ? response.length : 'Not an array')
-		
+		console.log(
+			'📤 [KAFKA PRODUCER]   Response Array Length:',
+			Array.isArray(response) ? response.length : 'Not an array'
+		)
+
 		if (response && Array.isArray(response) && response.length > 0) {
 			response.forEach((result, index) => {
 				console.log(`📤 [KAFKA PRODUCER]   Result ${index}:`)
@@ -108,14 +111,14 @@ const pushPayloadToKafka = async (payload) => {
 			})
 		}
 		console.log('📤 [KAFKA PRODUCER] ===== KAFKA SEND COMPLETED =====')
-		
+
 		return response
 	} catch (error) {
 		console.log('📤 [KAFKA PRODUCER] ❌ ERROR in pushPayloadToKafka:', error.message)
 		console.log('📤 [KAFKA PRODUCER] ❌ Error details:', {
 			name: error.name,
 			code: error.code,
-			stack: error.stack?.split('\n').slice(0, 3).join('\n')
+			stack: error.stack?.split('\n').slice(0, 3).join('\n'),
 		})
 		return error
 	}
@@ -134,7 +137,17 @@ const clearInternalCache = async (key) => {
 	}
 }
 
+/**
+ * Push an event for brac-utility-service (notification emails); it already consumes this topic.
+ * @param {Object} message - { eventId, eventType, tenantCode, ...event data }
+ */
+const pushUtilityEvent = async (message) => {
+	const topic = process.env.UTILITY_EVENTS_TOPIC || 'session-enrollment-topic'
+	return await pushPayloadToKafka({ topic, messages: [{ value: JSON.stringify(message) }] })
+}
+
 module.exports = {
+	pushUtilityEvent,
 	pushEmailToKafka,
 	clearInternalCache,
 	pushUserEventsToKafka,

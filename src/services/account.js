@@ -18,6 +18,7 @@ const userQueries = require('@database/queries/users')
 const organizationQueries = require('@database/queries/organization')
 const notificationTemplateQueries = require('@database/queries/notificationTemplate')
 const kafkaCommunication = require('@generics/kafka-communication')
+const crypto = require('crypto')
 const roleQueries = require('@database/queries/user-role')
 const orgDomainQueries = require('@database/queries/orgDomain')
 const userInviteQueries = require('@database/queries/orgUserInvite')
@@ -40,6 +41,26 @@ const notificationUtils = require('@utils/notification')
 const userHelper = require('@helpers/userHelper')
 const { broadcastEvent } = require('@helpers/eventBroadcasterMain')
 const { use } = require('i18next')
+
+/**
+ * Tell brac-utility-service about a failed login (admin "login/access issues" email). Fire and forget: it must never
+ * slow down or fail the login. Only the user id, or a hash of the identifier when no user matched, leaves this service.
+ * @param {String} tenantCode - tenant code.
+ * @param {Number|null} userId - user id when the identifier matched a user.
+ * @param {String} identifier - email / phone / username that was tried.
+ */
+function recordLoginFailure(tenantCode, userId, identifier) {
+	kafkaCommunication
+		.pushUtilityEvent({
+			eventId: crypto.randomUUID(),
+			eventType: 'USER_LOGIN_FAILED',
+			tenantCode,
+			userId: userId ? String(userId) : null,
+			identifierHash: crypto.createHash('sha256').update(String(identifier)).digest('hex'),
+			occurredAt: new Date().toISOString(),
+		})
+		.catch((error) => console.error('Failed to push USER_LOGIN_FAILED to kafka:', error))
+}
 
 module.exports = class AccountHelper {
 	/**
@@ -782,6 +803,7 @@ module.exports = class AccountHelper {
 			let user = userInstance ? userInstance.toJSON() : null
 
 			if (!user) {
+				recordLoginFailure(tenantDetail.code, null, identifier)
 				return responses.failureResponse({
 					message: 'IDENTIFIER_OR_PASSWORD_INVALID',
 					statusCode: httpStatusCode.bad_request,
@@ -804,6 +826,7 @@ module.exports = class AccountHelper {
 			// Verify password
 			const isPasswordCorrect = await bcryptJs.compare(bodyData.password, user.password)
 			if (!isPasswordCorrect) {
+				recordLoginFailure(tenantDetail.code, user.id, identifier)
 				return responses.failureResponse({
 					message: 'IDENTIFIER_OR_PASSWORD_INVALID',
 					statusCode: httpStatusCode.bad_request,
