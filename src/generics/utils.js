@@ -255,11 +255,17 @@ async function validateInput(input, validationData, modelName, skipValidation = 
 			if (field.external_entity_type && fieldValue !== undefined) {
 				let verifyExternalEntityFlag = false
 				if (field.data_type == 'ARRAY' || field.data_type == 'ARRAY[STRING]') {
-					fieldValue.forEach(async (key) => {
+					// forEach(async) was never awaited, so invalid ids in province/site arrays passed validation
+					// fieldValue.forEach(async (key) => {
+					// 	verifyExternalEntityFlag = await verifyExternalEntity(key, field, tenantCode)
+					// 	if (!verifyExternalEntityFlag)
+					// 		addError(field, fieldValue, false, `'${key}' is an invalid ${field.value} entity!`)
+					// })
+					for (const key of Array.isArray(fieldValue) ? fieldValue : []) {
 						verifyExternalEntityFlag = await verifyExternalEntity(key, field, tenantCode)
 						if (!verifyExternalEntityFlag)
 							addError(field, fieldValue, false, `'${key}' is an invalid ${field.value} entity!`)
-					})
+					}
 				} else {
 					verifyExternalEntityFlag = await verifyExternalEntity(fieldValue, field, tenantCode)
 					if (!verifyExternalEntityFlag)
@@ -539,62 +545,74 @@ async function processDbResponse(responseBody, entityType) {
 
 				return response.data.result[0]
 			})
-			entityType.forEach(async (entity) => {
+			// Outer loop repeated the inner one per meta key, so array entities (province/site) got pushed N times
+			// entityType.forEach(async (entity) => {
+			// 	const entityTypeValue = entity.value
+			// 	if (responseBody?.meta?.hasOwnProperty(entityTypeValue)) {
+			entityType.forEach((entity) => {
 				const entityTypeValue = entity.value
 				if (responseBody?.meta?.hasOwnProperty(entityTypeValue)) {
-					entityType.forEach((entity) => {
-						const entityTypeValue = entity.value
-						if (responseBody?.meta?.hasOwnProperty(entityTypeValue)) {
-							// Move the key from responseBody.meta to responseBody root level -> should happen only if entity type is not external
-							if (entity.external_entity_type) {
-								if (_.isArray(responseBody.meta[entityTypeValue])) {
-									for (entity of responseBody.meta[entityTypeValue]) {
-										const findEntity = parseResponse.find((fetched) => fetched._id == entity) || {}
-										if (findEntity && Object.keys(findEntity).length > 0) {
-											if (
-												responseBody[entityTypeValue] &&
-												Array.isArray(responseBody[entityTypeValue])
-											) {
-												// Push to existing array
-												responseBody[entityTypeValue].push({
-													value: findEntity['_id'],
-													label: findEntity.metaInformation.name,
-													externalId: findEntity.metaInformation.externalId,
-												})
-											} else {
-												// Create new array with the value
-												responseBody[entityTypeValue] = [
-													{
-														value: findEntity['_id'],
-														label: findEntity.metaInformation.name,
-														externalId: findEntity.metaInformation.externalId,
-													},
-												]
-											}
-										}
-									}
-								} else {
-									const findEntity =
-										parseResponse.find(
-											(fetched) => fetched._id == responseBody.meta[entityTypeValue]
-										) || {}
-
-									if (findEntity && Object.keys(findEntity).length > 0) {
-										responseBody[entityTypeValue] = {
-											value: findEntity['_id'],
-											label: findEntity.metaInformation.name,
-											externalId: findEntity.metaInformation.externalId,
-										}
-									} else {
-										responseBody[entityTypeValue] = {}
-									}
+					// Move the key from responseBody.meta to responseBody root level -> should happen only if entity type is not external
+					if (entity.external_entity_type) {
+						if (_.isArray(responseBody.meta[entityTypeValue])) {
+							// for (entity of responseBody.meta[entityTypeValue]) {
+							// 	const findEntity = parseResponse.find((fetched) => fetched._id == entity) || {}
+							// 	if (findEntity && Object.keys(findEntity).length > 0) {
+							// 		if (
+							// 			responseBody[entityTypeValue] &&
+							// 			Array.isArray(responseBody[entityTypeValue])
+							// 		) {
+							// 			// Push to existing array
+							// 			responseBody[entityTypeValue].push({
+							// 				value: findEntity['_id'],
+							// 				label: findEntity.metaInformation.name,
+							// 				externalId: findEntity.metaInformation.externalId,
+							// 			})
+							// 		} else {
+							// 			// Create new array with the value
+							// 			responseBody[entityTypeValue] = [
+							// 				{
+							// 					value: findEntity['_id'],
+							// 					label: findEntity.metaInformation.name,
+							// 					externalId: findEntity.metaInformation.externalId,
+							// 				},
+							// 			]
+							// 		}
+							// 	}
+							// }
+							// Build a fresh list so raw ids already on the root key are not mixed with labels
+							const resolvedEntities = []
+							for (const entityId of responseBody.meta[entityTypeValue]) {
+								const findEntity = parseResponse.find((fetched) => fetched._id == entityId) || {}
+								if (Object.keys(findEntity).length > 0) {
+									resolvedEntities.push({
+										value: findEntity['_id'],
+										label: findEntity.metaInformation.name,
+										externalId: findEntity.metaInformation.externalId,
+									})
 								}
-								//delete responseBody.meta[entityTypeValue]
+							}
+							responseBody[entityTypeValue] = resolvedEntities
+						} else {
+							const findEntity =
+								parseResponse.find((fetched) => fetched._id == responseBody.meta[entityTypeValue]) || {}
+
+							if (findEntity && Object.keys(findEntity).length > 0) {
+								responseBody[entityTypeValue] = {
+									value: findEntity['_id'],
+									label: findEntity.metaInformation.name,
+									externalId: findEntity.metaInformation.externalId,
+								}
+							} else {
+								responseBody[entityTypeValue] = {}
 							}
 						}
-					})
+						//delete responseBody.meta[entityTypeValue]
+					}
 				}
 			})
+			// 	}
+			// })
 		}
 	}
 

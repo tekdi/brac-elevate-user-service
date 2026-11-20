@@ -235,7 +235,9 @@ module.exports = class UserInviteHelper {
 							const findEntityType = prunedEntities.find((prunedEntity) => prunedEntity.value == key)
 							service = findEntityType.meta.service
 							endPoint = findEntityType.meta.endPoint
-							if (findEntityType.data_type === 'ARRAY') {
+							// ARRAY[STRING] added so multi-value province/site columns are split too
+							// if (findEntityType.data_type === 'ARRAY') {
+							if (findEntityType.data_type === 'ARRAY' || findEntityType.data_type === 'ARRAY[STRING]') {
 								// Split comma-separated values and add each as a unique value
 								item[key].split(',').forEach((subrole) => uniqueValues.add(subrole.trim()))
 							} else {
