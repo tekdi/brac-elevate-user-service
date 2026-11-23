@@ -441,7 +441,22 @@ exports.searchUsersWithOrganization = async ({
 					// Use Sequelize.where with JSONB operator for safe parameterized queries
 					// The key is validated to be alphanumeric/underscore only to prevent SQL injection
 					if (/^[a-zA-Z0-9_]+$/.test(key)) {
-						userWhere[Op.and].push(Sequelize.where(Sequelize.literal(`"User".meta->>'${key}'`), value))
+						// userWhere[Op.and].push(Sequelize.where(Sequelize.literal(`"User".meta->>'${key}'`), value))
+						// A list of values (e.g. a Supervisor's own sites) matches users having any one of them
+						if (Array.isArray(value)) {
+							const escapedValues = value
+								.map((v) => String(v))
+								.filter(Boolean)
+								.map((v) => Sequelize.escape(v))
+								.join(',')
+							if (escapedValues) {
+								userWhere[Op.and].push(
+									Sequelize.literal(`"User".meta->'${key}' ?| array[${escapedValues}]`)
+								)
+							}
+						} else {
+							userWhere[Op.and].push(Sequelize.where(Sequelize.literal(`"User".meta->>'${key}'`), value))
+						}
 					}
 				}
 			}
