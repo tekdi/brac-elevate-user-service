@@ -2022,24 +2022,58 @@ module.exports = class AccountHelper {
 
 			const defaultOrganizationCode = process.env.DEFAULT_ORGANISATION_CODE
 
+			// Commented out: this ran the same entity-type query once per user (100 users = 100 queries),
+			// which made search take 5s+ on QA and hit project-service's 5s timeout ("No valid users found").
+			// for (let i = 0; i < users.data.length; i++) {
+			// 	let user = users.data[i]
+			//
+			// 	// Convert Sequelize instance to plain object
+			// 	if (user.toJSON) {
+			// 		user = user.toJSON()
+			// 		users.data[i] = user
+			// 	}
+			//
+			// 	let userOrg = user.user_organizations[0].organization_code
+			// 	let validationData = await entityTypeQueries.findUserEntityTypesAndEntities({
+			// 		status: 'ACTIVE',
+			// 		organization_code: {
+			// 			[Op.in]: [userOrg, defaultOrganizationCode],
+			// 		},
+			// 		tenant_code: params.query.tenant_code,
+			// 		model_names: { [Op.contains]: [await userQueries.getModelName()] },
+			// 	})
+			// 	const prunedEntities = removeDefaultOrgEntityTypes(validationData, user.user_organizations[0].id)
+			// 	const processedUser = await utils.processDbResponse(user, prunedEntities)
+			// 	Object.assign(user, processedUser)
+			// }
+
+			// Entity types depend only on the user's org, so fetch them once per org for this request
+			const userModelName = await userQueries.getModelName()
+			const entityTypesByOrg = new Map()
+
 			for (let i = 0; i < users.data.length; i++) {
 				let user = users.data[i]
 
-				// Convert Sequelize instance to plain object
 				if (user.toJSON) {
 					user = user.toJSON()
 					users.data[i] = user
 				}
 
 				let userOrg = user.user_organizations[0].organization_code
-				let validationData = await entityTypeQueries.findUserEntityTypesAndEntities({
-					status: 'ACTIVE',
-					organization_code: {
-						[Op.in]: [userOrg, defaultOrganizationCode],
-					},
-					tenant_code: params.query.tenant_code,
-					model_names: { [Op.contains]: [await userQueries.getModelName()] },
-				})
+				if (!entityTypesByOrg.has(userOrg)) {
+					entityTypesByOrg.set(
+						userOrg,
+						await entityTypeQueries.findUserEntityTypesAndEntities({
+							status: 'ACTIVE',
+							organization_code: {
+								[Op.in]: [userOrg, defaultOrganizationCode],
+							},
+							tenant_code: params.query.tenant_code,
+							model_names: { [Op.contains]: [userModelName] },
+						})
+					)
+				}
+				let validationData = entityTypesByOrg.get(userOrg)
 				const prunedEntities = removeDefaultOrgEntityTypes(validationData, user.user_organizations[0].id)
 				const processedUser = await utils.processDbResponse(user, prunedEntities)
 				Object.assign(user, processedUser)
